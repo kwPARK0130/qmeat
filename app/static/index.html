@@ -1,0 +1,645 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Qmeat — 육류 시장 인사이트</title>
+    <link rel="stylesheet" href="/static/style.css" />
+    <script src="/static/app.js" defer></script>
+  </head>
+  <body>
+    <aside>
+      <a class="brand" href="#overview"
+        ><span class="logo">Q</span> qmeat<span class="brand-dot">.</span></a
+      >
+      <div class="workspace">
+        MARKET WORKSPACE<br /><strong>육류 유통 인사이트</strong>
+      </div>
+      <nav>
+        <button data-page="overview" class="active">
+          <span>◫</span>종합 현황</button
+        ><button data-page="market"><span>▥</span>시장 통계</button
+        ><button data-page="calculator"><span>▦</span>원가 계산기</button
+        ><button data-page="fx"><span>⇄</span>환율·단위 환산</button
+        ><button data-page="saved"><span>☆</span>관심 품목·저장 검색</button>
+        <div class="nav-label">데이터 관리</div>
+        <button data-page="import"><span>↥</span>파일 가져오기</button
+        ><button data-page="updates"><span>⟳</span>자료 조회·갱신</button>
+      </nav>
+      <div class="aside-bottom">
+        <span class="status-dot"></span> 로컬 워크스페이스<br /><small
+          >공식 출처 · 재현 가능한 계산</small
+        >
+      </div>
+    </aside>
+    <div class="shell">
+      <header>
+        <div>
+          워크스페이스 <span class="slash">/</span>
+          <span id="crumb">종합 현황</span>
+        </div>
+        <div class="header-right">
+          <span id="clock"></span><span class="avatar">Q</span>
+        </div>
+      </header>
+      <main>
+        <div class="page-heading">
+          <div>
+            <div class="eyebrow">MEAT MARKET INTELLIGENCE</div>
+            <h1 id="title">시장을 읽고, 원가를 판단하세요.</h1>
+            <p id="subtitle">
+              수입 통계부터 견적의 수익성까지, 매일의 판단을 한곳에서.
+            </p>
+          </div>
+          <button id="refresh-all" class="primary">⟳ 전체 새로고침</button>
+        </div>
+        <div id="alert" role="status" hidden></div>
+        <section id="filter-panel" class="card filters">
+          <div class="filter-top">
+            <strong>조회 조건</strong
+            ><span class="muted">저장된 자료를 조회합니다</span>
+          </div>
+          <form id="filters">
+            <label
+              >제공처<select name="source">
+                <option value="customs">관세청 · 통관 통계</option>
+                <option value="mfds">식약처 · 검사 통계</option>
+              </select></label
+            ><label
+              >축종<select name="species">
+                <option value="">전체 축종</option>
+                <option>돼지</option>
+                <option>소</option>
+                <option>닭</option>
+                <option>양</option>
+                <option>기타</option>
+              </select></label
+            ><label
+              >보관<select name="storage">
+                <option value="">전체</option>
+                <option>냉장</option>
+                <option>냉동</option>
+                <option>미분류</option>
+              </select></label
+            ><label
+              >품목코드<input
+                name="code"
+                placeholder="예: 020329"
+                pattern="[0-9]*" /></label
+            ><label
+              >국가 코드<input name="country" placeholder="예: US" /></label
+            ><label>시작월<input type="month" name="start" required /></label
+            ><label>종료월<input type="month" name="end" required /></label
+            ><label
+              >분류 버전<input name="version" placeholder="전체 버전" /></label
+            ><label
+              >국가 역할<select name="country_role">
+                <option value="">전체 역할</option>
+                <option value="statistical">통계 국가</option>
+                <option value="origin">원산지</option>
+                <option value="manufacture">제조국</option>
+                <option value="export">수출국</option>
+              </select></label
+            ><label
+              >지표<select name="metric">
+                <option value="weight_kg">수입 중량</option>
+                <option value="amount_usd">수입 금액</option>
+                <option value="unit_price">평균 수입단가</option>
+              </select></label
+            >
+            <div class="filter-actions">
+              <button class="primary" type="submit">검색</button
+              ><button type="button" id="save-search">☆ 검색 저장</button
+              ><button type="button" id="refresh-filter">
+                ⟳ 원자료 다시 조회
+              </button>
+            </div>
+          </form>
+          <div class="filter-note">
+            분류코드는 원본 그대로 조회합니다. 부위·뼈 유무는 제공처가 지원하는
+            분류에 한해 확인하세요.
+          </div>
+        </section>
+        <section id="page-overview" class="page">
+          <div class="section-line">
+            <h2>시장 한눈에 보기</h2>
+            <span id="period-label" class="muted"></span>
+          </div>
+          <div id="kpis" class="kpis"></div>
+          <div class="two-col">
+            <article class="card chart-card">
+              <div class="card-heading">
+                <div>
+                  <h2>월별 수입 추이</h2>
+                  <p>같은 조건의 월별 자료 · 누락월은 연결하지 않음</p>
+                </div>
+                <span class="pill">저장 자료</span>
+              </div>
+              <div id="chart"></div>
+              <div id="chart-foot" class="card-foot"></div>
+            </article>
+            <article class="card">
+              <div class="card-heading">
+                <div>
+                  <h2>국가별 비교</h2>
+                  <p>조회 국가 중 중량 비중</p>
+                </div>
+                <span class="muted">kg</span>
+              </div>
+              <div id="countries"></div>
+            </article>
+          </div>
+          <div class="two-col bottom-grid">
+            <article class="card">
+              <div class="card-heading">
+                <div>
+                  <h2>오늘의 데이터 상태</h2>
+                  <p>자료 기준일과 조회 시각을 구분합니다</p>
+                </div>
+                <button data-go="updates" class="text-btn">상세 보기 ↗</button>
+              </div>
+              <div id="source-summary"></div>
+            </article>
+            <article class="card quick-card">
+              <span class="eyebrow">FROM QUOTE TO MARGIN</span>
+              <h2>이 견적, 얼마에 팔아야 할까요?</h2>
+              <p>
+                환율, 운임, 세금, 판매 조건을 반영해<br />판매 가능한 kg당
+                원가를 계산하세요.
+              </p>
+              <button data-go="calculator" class="primary">
+                원가 계산 시작 <span>→</span>
+              </button>
+              <div class="quick-bottom">
+                십진수 계산 <span>·</span> 환율 스냅샷 <span>·</span> 비용 누락
+                확인
+              </div>
+            </article>
+          </div>
+        </section>
+        <section id="page-market" class="page" hidden>
+          <article class="card">
+            <div class="card-heading">
+              <div>
+                <h2>수입 통계 상세</h2>
+                <p id="table-meta"></p>
+              </div>
+              <div>
+                <button id="export-csv">CSV ↓</button
+                ><button id="export-xlsx">Excel ↓</button>
+              </div>
+            </div>
+            <div id="monthly"></div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>기간</th>
+                    <th>품목 / 코드</th>
+                    <th>국가 · 역할</th>
+                    <th>순중량 kg</th>
+                    <th>금액 USD</th>
+                    <th>USD/kg</th>
+                    <th>자료 상태</th>
+                  </tr>
+                </thead>
+                <tbody id="stats-rows"></tbody>
+              </table>
+            </div>
+            <div class="card-foot">
+              <button id="prev-page">← 이전</button><span id="pagination"></span
+              ><button id="next-page">다음 →</button>
+            </div>
+          </article>
+        </section>
+        <section id="page-calculator" class="page" hidden>
+          <div class="calculator-layout">
+            <form id="calc-form" class="card calc-input">
+              <div class="card-heading">
+                <div>
+                  <h2>견적과 판매 조건</h2>
+                  <p>
+                    입력한 값으로 계산합니다. 실제 시세를 대입하지 않습니다.
+                  </p>
+                </div>
+              </div>
+              <div class="form-section">
+                <h3><b>01</b> 제품 · 구매 조건</h3>
+                <div class="form-grid">
+                  <label class="wide"
+                    >제품·규격<input
+                      name="product"
+                      placeholder="제품명, 부위, 규격" /></label
+                  ><label
+                    >통화<select name="currency">
+                      <option>USD</option>
+                      <option>EUR</option>
+                      <option>JPY</option>
+                      <option>KRW</option>
+                    </select></label
+                  ><label
+                    >단가 기준<select name="unit">
+                      <option value="kg">외화 / kg</option>
+                      <option value="lb">외화 / lb</option>
+                      <option value="100g">외화 / 100g</option>
+                      <option value="ton">외화 / 톤</option>
+                      <option value="box">외화 / 박스</option>
+                    </select></label
+                  ><label
+                    >외화 단가<input
+                      name="price"
+                      type="number"
+                      step="any"
+                      min="0"
+                      required /></label
+                  ><label
+                    >박스 순중량 kg<input
+                      name="box_kg"
+                      type="number"
+                      step="any"
+                      min="0"
+                      placeholder="박스 단위 시 필수" /></label
+                  ><label
+                    >구매 순중량 kg<input
+                      name="purchase_kg"
+                      type="number"
+                      step="any"
+                      min="0"
+                      required /></label
+                  ><label
+                    >판매 가능 중량 kg<input
+                      name="saleable_kg"
+                      type="number"
+                      step="any"
+                      min="0"
+                      required /></label
+                  ><label
+                    >거래조건<select name="incoterm">
+                      <option>미확정</option>
+                      <option>EXW</option>
+                      <option>FOB</option>
+                      <option>CIF</option>
+                      <option>DDP</option>
+                    </select></label
+                  ><label>인도장소<input name="delivery_place" /></label>
+                </div>
+              </div>
+              <div class="form-section">
+                <h3><b>02</b> 적용 환율</h3>
+                <div class="form-grid">
+                  <label
+                    >원 / 1외화<input
+                      name="exchange_rate"
+                      type="number"
+                      step="any"
+                      min="0"
+                      required /></label
+                  ><label
+                    >환율 성격<select name="fx_type">
+                      <option>예상 결제환율</option>
+                      <option>참고 고시환율</option>
+                      <option>실제 결제환율</option>
+                    </select></label
+                  ><label>환율 기준일<input name="fx_date" type="date" /></label
+                  ><label
+                    >계산 상태<select name="settlement_status">
+                      <option value="estimate">예상 계산</option>
+                      <option value="settled">실제 정산</option>
+                    </select></label
+                  >
+                </div>
+              </div>
+              <div class="form-section">
+                <h3><b>03</b> 입고까지의 비용</h3>
+                <p class="muted">
+                  구매가격에 포함된 비용은 더하지 않습니다. 세금은 확인된 세액을
+                  입력하세요.
+                </p>
+                <div id="cost-lines"></div>
+                <label
+                  >원가 차감액 KRW<input
+                    name="cost_deduction"
+                    type="number"
+                    value="0"
+                    step="any"
+                    min="0"
+                /></label>
+              </div>
+              <div class="form-section">
+                <h3><b>04</b> 판매 조건</h3>
+                <div class="form-grid">
+                  <label
+                    >목표이익률 %<input
+                      name="margin_pct"
+                      value="20"
+                      type="number"
+                      step="any"
+                      min="0" /></label
+                  ><label
+                    >매출수수료 %<input
+                      name="commission_pct"
+                      value="0"
+                      type="number"
+                      step="any"
+                      min="0" /></label
+                  ><label
+                    >별도 가산율 %<input
+                      name="markup_pct"
+                      value="20"
+                      type="number"
+                      step="any"
+                      min="0" /></label
+                  ><label
+                    >kg당 추가 판매비 KRW<input
+                      name="selling_cost_per_kg"
+                      value="0"
+                      type="number"
+                      step="any"
+                      min="0" /></label
+                  ><label
+                    >판매 중량 kg<input
+                      name="sold_kg"
+                      value="0"
+                      type="number"
+                      step="any"
+                      min="0" /></label
+                  ><label
+                    >순판매 단가 KRW/kg<input
+                      name="selling_price"
+                      value="0"
+                      type="number"
+                      step="any"
+                      min="0" /></label
+                  ><label
+                    >할인·환불 KRW<input
+                      name="discount"
+                      value="0"
+                      type="number"
+                      step="any"
+                      min="0"
+                  /></label>
+                </div>
+              </div>
+              <div class="form-section">
+                <button type="submit" class="primary full">
+                  원가·판매가격 계산
+                </button>
+              </div>
+            </form>
+            <div>
+              <article class="card result-card">
+                <div class="card-heading">
+                  <div>
+                    <div class="eyebrow">COST BREAKDOWN</div>
+                    <h2>계산 결과</h2>
+                  </div>
+                  <span class="pill">KRW</span>
+                </div>
+                <div id="calc-result" class="empty">
+                  <span>▦</span>
+                  <h3>구매 조건을 입력하세요</h3>
+                  <p>계산 근거와 비용 명세가 여기에 표시됩니다.</p>
+                </div>
+              </article>
+              <article class="card policy">
+                <h3>계산 원칙</h3>
+                <p>
+                  목표 판매가 = (kg당 원가 + kg당 판매비) ÷ (1 − 수수료율 −
+                  목표이익률)
+                </p>
+                <p>
+                  회수가능 세금은 필요 자금에 포함하고 원가에서 제외합니다. 일부
+                  판매 시 판매 중량에 해당하는 원가만 배분합니다.
+                </p>
+                <p>저장 시 입력·환율·수식 버전을 함께 보관합니다.</p>
+              </article>
+            </div>
+          </div>
+        </section>
+        <section id="page-fx" class="page" hidden>
+          <div class="two-col">
+            <article class="card">
+              <div class="card-heading">
+                <div>
+                  <h2>통화별 최근 유효 고시</h2>
+                  <p>실제 은행 결제환율과 다릅니다 · 원 / 1외화</p>
+                </div>
+              </div>
+              <div id="fx-rates"></div>
+            </article>
+            <article class="card padded">
+              <h2>확인한 환율 입력</h2>
+              <p class="muted">
+                공식 자료의 기준일과 단위를 그대로 입력합니다.
+              </p>
+              <form id="fx-form" class="form-grid">
+                <label
+                  >통화<input
+                    name="currency"
+                    value="USD"
+                    required
+                    maxlength="3" /></label
+                ><label
+                  >실제 고시일<input name="date" type="date" required /></label
+                ><label
+                  >고시금액 KRW<input
+                    name="rate"
+                    type="number"
+                    step="any"
+                    min="0"
+                    required /></label
+                ><label
+                  >기준 외화 단위<select name="base">
+                    <option value="1">1외화</option>
+                    <option value="100">100외화 (JPY 등)</option>
+                  </select></label
+                ><label class="wide"
+                  >출처 URL·자료명<input name="reference" required /></label
+                ><button class="primary">저장·단위 정규화</button>
+              </form>
+            </article>
+          </div>
+          <article class="card padded">
+            <h2>외화 견적 · 중량 환산</h2>
+            <form id="convert-form" class="form-grid">
+              <label
+                >금액·중량<input
+                  name="value"
+                  type="number"
+                  step="any"
+                  required /></label
+              ><label
+                >환산<select name="kind">
+                  <option value="lb">lb → kg</option>
+                  <option value="ton">톤 → kg</option>
+                  <option value="price_lb">외화/lb → 외화/kg</option>
+                  <option value="100g">원/100g → 원/kg</option>
+                  <option value="fx">외화 → KRW</option>
+                </select></label
+              ><label
+                >원 / 1외화 (외화 환산 시)<input
+                  name="rate"
+                  type="number"
+                  step="any" /></label
+              ><button class="primary">환산</button>
+            </form>
+            <output id="convert-result"></output>
+          </article>
+        </section>
+        <section id="page-saved" class="page" hidden>
+          <div class="two-col">
+            <article class="card">
+              <div class="card-heading"><h2>관심 품목·저장 검색</h2></div>
+              <div id="saved-searches"></div>
+            </article>
+            <article class="card">
+              <div class="card-heading"><h2>원가 계산 스냅샷</h2></div>
+              <div id="saved-calculations"></div>
+            </article>
+          </div>
+        </section>
+        <section id="page-import" class="page" hidden>
+          <article class="card padded">
+            <span class="eyebrow">OFFICIAL FILE IMPORT</span>
+            <h2>공식 통계 파일을 연결하세요.</h2>
+            <p class="muted">
+              CSV·XLSX를 미리 확인한 뒤 저장합니다. 원본 단위와 국가 역할을
+              지정하세요.
+            </p>
+            <div class="source-links">
+              <a href="https://tradedata.go.kr/" target="_blank" rel="noopener"
+                >관세청 공식 파일 ↗</a
+              ><a
+                href="https://impfood.mfds.go.kr/CFDDD01F01"
+                target="_blank"
+                rel="noopener"
+                >식약처 일반통계 ↗</a
+              >
+            </div>
+            <form id="import-form">
+              <div class="upload-area">
+                <span>↥</span
+                ><label
+                  >CSV 또는 Excel 파일 선택<input
+                    type="file"
+                    id="import-file"
+                    accept=".csv,.xlsx"
+                    required /></label
+                ><small>최대 10MB · 50,000행 · 매크로 미지원</small>
+              </div>
+              <div class="form-grid import-options">
+                <label
+                  >제공처<select name="source">
+                    <option value="customs">관세청</option>
+                    <option value="mfds">식약처</option>
+                  </select></label
+                ><label
+                  >시트명<input
+                    name="sheet"
+                    placeholder="비우면 첫 시트" /></label
+                ><label
+                  >헤더 행<input
+                    name="header"
+                    type="number"
+                    value="1"
+                    min="1"
+                    max="100" /></label
+                ><label
+                  >분류 버전<input
+                    name="version"
+                    placeholder="예: HS2022"
+                    required /></label
+                ><label
+                  >중량 단위<select name="weight_unit" required>
+                    <option value="">선택</option>
+                    <option value="kg">kg</option>
+                    <option value="ton">톤</option>
+                  </select></label
+                ><label
+                  >금액 단위<select name="amount_unit" required>
+                    <option value="">선택</option>
+                    <option value="USD">USD</option>
+                    <option value="1000USD">천 USD</option>
+                  </select></label
+                ><label
+                  >국가 역할<select name="country_role">
+                    <option value="statistical">제공처 통계 국가</option>
+                    <option value="origin">원산지</option>
+                    <option value="manufacture">제조국</option>
+                    <option value="export">수출국</option>
+                  </select></label
+                >
+              </div>
+              <h3>
+                열 연결
+                <small class="muted">파일에 있는 열 이름을 입력하세요</small>
+              </h3>
+              <div id="mapping" class="form-grid import-options"></div>
+              <button class="primary">파일 미리보기·검증</button>
+            </form>
+            <div id="import-preview"></div>
+          </article>
+        </section>
+        <section id="page-updates" class="page" hidden>
+          <div id="sources-detail"></div>
+          <article class="card padded">
+            <div class="section-line">
+              <div>
+                <h2>매일 자동 갱신</h2>
+                <p class="muted">
+                  백엔드 실행 중 동작합니다. 재시작 시 누락된 최근 예약을
+                  보충합니다.
+                </p>
+              </div>
+              <form id="schedule-form" class="inline">
+                <label
+                  ><input type="checkbox" name="enabled" checked /> 예약
+                  활성화</label
+                ><input name="time" type="time" value="12:00" /><span
+                  >Asia/Seoul</span
+                ><button>저장</button>
+              </form>
+            </div>
+            <p id="schedule-status" class="muted"></p>
+            <p class="muted">
+              관심 품목은 저장 검색을 기준으로 최근 3개월, 환율은 최근 14일을
+              재조회합니다. 매월 1일에는 최근 36개월을 재확인합니다.
+            </p>
+          </article>
+          <article class="card">
+            <div class="card-heading">
+              <div>
+                <h2>갱신 작업 이력</h2>
+                <p>실패해도 이전 정상자료를 유지합니다.</p>
+              </div>
+              <button id="reload-jobs">상태 확인 ⟳</button>
+            </div>
+            <div id="jobs"></div>
+          </article>
+        </section>
+        <footer>
+          Qmeat <span>의사결정을 위한 데이터, 확인 가능한 근거.</span
+          ><span>공개 통계와 실제 거래 원가는 별도입니다.</span>
+        </footer>
+      </main>
+    </div>
+    <dialog id="save-dialog">
+      <form id="save-search-form">
+        <h2>관심 품목·검색 저장</h2>
+        <label>이름<input name="name" required /></label
+        ><label
+          >기간 정책<select name="period_mode">
+            <option value="fixed">현재 기간 고정</option>
+            <option value="recent">최근 N개월 완결월</option>
+          </select></label
+        ><label
+          >N개월<input name="months" type="number" value="12" min="1" max="120"
+        /></label>
+        <div class="dialog-actions">
+          <button type="button" id="close-dialog">취소</button
+          ><button class="primary">저장</button>
+        </div>
+      </form>
+    </dialog>
+  </body>
+</html>
